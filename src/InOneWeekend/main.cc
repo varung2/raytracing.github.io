@@ -9,6 +9,9 @@
 // along with this software. If not, see <http://creativecommons.org/publicdomain/zero/1.0/>.
 //==============================================================================================
 
+// needed for tiny obj loader
+#define TINYOBJLOADER_IMPLEMENTATION
+
 #include "rtweekend.h"
 
 #include "camera.h"
@@ -16,9 +19,81 @@
 #include "hittable_list.h"
 #include "material.h"
 #include "sphere.h"
+#include "triangle.h"
 
 #include <iostream>
 
+#include <vector>
+#include <string>
+#include "external/tinyobjloader/tiny_obj_loader.h"
+
+bool read_object_file(
+    std::string obj_fname, 
+    hittable_list& world, 
+    const double scale = 1.0, 
+    const shared_ptr<material> obj_material = nullptr, 
+    const vec3 translation_vector = vec3(0,0,0)
+    ) {
+    // if (world == NULL) world = new hittable_list();
+
+    tinyobj::ObjReaderConfig reader_config; //triangulate is automatically set to true
+    tinyobj::ObjReader reader;
+    // Spit out errors/warnings if you get some, terminate if error
+    if (!reader.ParseFromFile(obj_fname, reader_config)) {
+        if (!reader.Error().empty()) {std::cerr << "TinyObjReader Error: " << reader.Error() << std::endl;}
+        return false;
+    }
+    if (!reader.Warning().empty()) std::cout << "TinyObjReader Warning: " << reader.Warning() << std::endl;
+
+    auto& attrib = reader.GetAttrib();
+    auto& shapes = reader.GetShapes();
+    bool enable_vertex_normals = (attrib.normals.size() > 0);
+
+    auto object = make_shared<hittable_list>();
+
+    // initialize num vertices & normals to have size 3
+    std::vector<vec3> face_vertices(3);
+    std::vector<vec3> face_normals(3);
+
+    shared_ptr<material> __obj_mat;
+    if (obj_material == nullptr) __obj_mat = make_shared<lambertian>(color::random()); //choose a random color
+    else __obj_mat = obj_material;
+
+    for (size_t s = 0; s < shapes.size(); s++) {
+        
+        // loop over the faces in the polygon
+        size_t index_offset = 0;
+        for (size_t f = 0; f < shapes[s].mesh.num_face_vertices.size(); f++) {
+            size_t fv = shapes[s].mesh.num_face_vertices[f];
+
+            // loop over the verticies in the face
+            for (size_t v = 0; v < fv; v++) {
+                tinyobj::index_t idx = shapes[s].mesh.indices[index_offset + v];
+                double vx = attrib.vertices[3*idx.vertex_index+0]*scale;
+                double vy = attrib.vertices[3*idx.vertex_index+1]*scale;
+                double vz = attrib.vertices[3*idx.vertex_index+2]*scale;
+                face_vertices[v] = vec3(vx, vy, vz) + translation_vector;
+                
+                if (enable_vertex_normals) {
+                    double nx = attrib.normals[3*idx.normal_index+0];
+                    double ny = attrib.normals[3*idx.normal_index+1];
+                    double nz = attrib.normals[3*idx.normal_index+2];
+                    face_normals[v] = vec3(nx, ny, nz);
+                }
+            }
+            if (enable_vertex_normals) {
+                object->add(make_shared<triangle>(
+                    face_vertices[0], face_vertices[1], face_vertices[2], 
+                    face_normals[0], face_normals[1], face_normals[2],
+                    __obj_mat));
+            } else object->add(make_shared<triangle>(face_vertices[0], face_vertices[1], face_vertices[2], __obj_mat));
+            index_offset += fv;
+        }       
+    }
+
+    world.add(object);
+    return true;
+}
 
 color ray_color(const ray& r, const hittable& world, int depth) {
     hit_record rec;
@@ -39,7 +114,6 @@ color ray_color(const ray& r, const hittable& world, int depth) {
     auto t = 0.5*(unit_direction.y() + 1.0);
     return (1.0-t)*color(1.0, 1.0, 1.0) + t*color(0.5, 0.7, 1.0);
 }
-
 
 hittable_list random_scene() {
     hittable_list world;
@@ -87,30 +161,48 @@ hittable_list random_scene() {
     return world;
 }
 
+hittable_list load_mesh_scene() {
+    hittable_list world;
+    std::string obj_file = "obj_meshes/cow__1000_rotated.obj";
+    
+    // auto ground_material = make_shared<lambertian>(color(0.5, 0.5, 0.5));
+    // world.add(make_shared<sphere>(point3(0,-1001,0), 1000, ground_material));
+
+    auto mesh_material = make_shared<lambertian>(color(0.25882, 0.5294, 0.96078));
+
+    read_object_file(obj_file, 
+        world, 
+        5.0, 
+        mesh_material, 
+        vec3(0,0,10)
+    );
+
+    return world;
+}
 
 int main() {
 
     // Image
 
-    const auto aspect_ratio = 16.0 / 9.0;
-    const int image_width = 1200;
-    const int image_height = static_cast<int>(image_width / aspect_ratio);
+    const int image_width = 1280;
+    const int image_height = 720;
+    const double aspect_ratio = static_cast<double>(image_width) / static_cast<double>(image_height);
     const int samples_per_pixel = 10;
     const int max_depth = 50;
 
     // World
 
-    auto world = random_scene();
+    auto world = load_mesh_scene();
 
     // Camera
 
-    point3 lookfrom(13,2,3);
-    point3 lookat(0,0,0);
+    point3 lookfrom(0,0,0);
+    point3 lookat(0,0,1);
     vec3 vup(0,1,0);
     auto dist_to_focus = 10.0;
-    auto aperture = 0.1;
+    auto aperture = 0.00001; //have large depth of field (i.e. no blur)
 
-    camera cam(lookfrom, lookat, vup, 20, aspect_ratio, aperture, dist_to_focus);
+    camera cam(lookfrom, lookat, vup, 90, aspect_ratio, aperture, dist_to_focus);
 
     // Render
 

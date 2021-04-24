@@ -28,6 +28,7 @@ set ( SOURCE_ONE_WEEKEND
   src/InOneWeekend/hittable_list.h
   src/InOneWeekend/material.h
   src/InOneWeekend/sphere.h
+  src/InOneWeekend/triangle.h
   src/InOneWeekend/main.cc
 )
 
@@ -69,15 +70,21 @@ set ( SOURCE_REST_OF_YOUR_LIFE
   src/TheRestOfYourLife/main.cc
 )
 
+
 # Executables
 add_executable(inOneWeekend      ${SOURCE_ONE_WEEKEND})
-add_executable(theNextWeek       ${SOURCE_NEXT_WEEK})
-add_executable(theRestOfYourLife ${SOURCE_REST_OF_YOUR_LIFE})
-add_executable(cos_cubed         src/TheRestOfYourLife/cos_cubed.cc         ${COMMON_ALL})
-add_executable(cos_density       src/TheRestOfYourLife/cos_density.cc       ${COMMON_ALL})
-add_executable(integrate_x_sq    src/TheRestOfYourLife/integrate_x_sq.cc    ${COMMON_ALL})
-add_executable(pi                src/TheRestOfYourLife/pi.cc                ${COMMON_ALL})
-add_executable(sphere_importance src/TheRestOfYourLife/sphere_importance.cc ${COMMON_ALL})
-add_executable(sphere_plot       src/TheRestOfYourLife/sphere_plot.cc       ${COMMON_ALL})
+# add_executable(theNextWeek       ${SOURCE_NEXT_WEEK})
+# add_executable(theRestOfYourLife ${SOURCE_REST_OF_YOUR_LIFE})
+# add_executable(cos_cubed         src/TheRestOfYourLife/cos_cubed.cc         ${COMMON_ALL})
+# add_executable(cos_density       src/TheRestOfYourLife/cos_density.cc       ${COMMON_ALL})
+# add_executable(integrate_x_sq    src/TheRestOfYourLife/integrate_x_sq.cc    ${COMMON_ALL})
+# add_executable(pi                src/TheRestOfYourLife/pi.cc                ${COMMON_ALL})
+# add_executable(sphere_importance src/TheRestOfYourLife/sphere_importance.cc ${COMMON_ALL})
+# add_executable(sphere_plot       src/TheRestOfYourLife/sphere_plot.cc       ${COMMON_ALL})
+target_compile_options(inOneWeekend PRIVATE -std=c++17 -g -Ofast -Wall -Wformat -pedantic -march=native)
 
 include_directories(src/common)
+
+## appended
+add_subdirectory(src/common/external/tinyobjloader)
+# target_include_directories(inOneWeekend src/common/external/tinyobjloader)
